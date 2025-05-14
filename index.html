@@ -4,17 +4,102 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Evil Manager and the Long Form</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div id="root" class="w-full"></div>
-  <!-- React, ReactDOM, Babel CDNs -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+
+  <!-- React and ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js"></script>
+
+  <!-- Emotion (required for MUI) -->
+  <script crossorigin src="https://unpkg.com/@emotion/react@11.11.3/dist/emotion-react.umd.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@emotion/styled@11.11.0/dist/emotion-styled.umd.min.js"></script>
+
+  <!-- Material UI -->
+  <script crossorigin src="https://unpkg.com/@mui/material@5.15.11/umd/material-ui.development.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+
+  <!-- Sweet Alert 2 instead of React-Toastify -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Custom Styles -->
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .form-container {
+      max-width: 1024px;
+      width: 100%;
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-title {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #1976d2;
+      font-size: 2rem;
+      font-weight: bold;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .form-field {
+      transition: transform 0.2s ease;
+    }
+
+    .form-field:hover {
+      transform: translateY(-2px);
+    }
+
+    .submit-button {
+      margin-top: 2rem !important;
+      width: 100%;
+      height: 48px;
+    }
+
+    @keyframes loading {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 10px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: loading 1s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
   <!-- App Script -->
   <script type="text/babel">
+    const { 
+      Button, TextField, Select, MenuItem, FormControl, 
+      InputLabel, FormHelperText, CircularProgress 
+    } = MaterialUI;
+
     // Field configuration array: each field has name, label, type, validation rules, etc.
     const fieldConfig = [
       { name: 'firstName', label: 'First Name', type: 'text', required: true, minLength: 2 },
@@ -107,18 +192,31 @@
         return initial;
       });
       const [formErrors, setFormErrors] = React.useState({});
-      const [submitted, setSubmitted] = React.useState(false);
+      const [isSubmitting, setIsSubmitting] = React.useState(false);
 
       // Handle input change
       const handleChange = (e, field) => {
         const { name, value } = e.target;
         setFormValues(prev => ({ ...prev, [name]: value }));
-        // Validate on change
-        setFormErrors(prev => ({ ...prev, [name]: validateField(field, value) }));
+        const error = validateField(field, value);
+        setFormErrors(prev => ({ ...prev, [name]: error }));
+        
+        if (error) {
+          Swal.fire({
+            title: 'Validation Error',
+            text: error,
+            icon: 'error',
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true
+          });
+        }
       };
 
       // Handle form submit
-      const handleSubmit = (e) => {
+      const handleSubmit = async (e) => {
         e.preventDefault();
         let errors = {};
         fieldConfig.forEach(field => {
@@ -126,86 +224,112 @@
           if (error) errors[field.name] = error;
         });
         setFormErrors(errors);
-        setSubmitted(true);
+
         if (Object.keys(errors).length === 0) {
-          // Success: show alert and reset form
-          alert('Form submitted successfully!');
+          setIsSubmitting(true);
+          
+          // Simulate API call
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          Swal.fire({
+            title: 'Success!',
+            text: 'Form submitted successfully! 🎉',
+            icon: 'success',
+            confirmButtonColor: '#1976d2'
+          });
+          
           setFormValues(fieldConfig.reduce((acc, f) => ({ ...acc, [f.name]: '' }), {}));
-          setSubmitted(false);
+          setIsSubmitting(false);
+        } else {
+          Swal.fire({
+            title: 'Error!',
+            text: 'Please fix the errors in the form',
+            icon: 'error',
+            confirmButtonColor: '#1976d2'
+          });
         }
       };
 
       return (
-        <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-lg mx-auto my-8">
-          <h2 className="text-2xl font-bold mb-6 text-center">Evil Manager and the Long Form</h2>
+        <div className="form-container">
+          <h2 className="form-title">Evil Manager and the Long Form</h2>
           <form onSubmit={handleSubmit} noValidate>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="form-grid">
               {fieldConfig.map(field => (
-                <div key={field.name} className="flex flex-col col-span-1">
-                  <label htmlFor={field.name} className="mb-1 font-medium">
-                    {field.label}
-                    {field.required && <span className="text-red-500 ml-1">*</span>}
-                  </label>
+                <div key={field.name} className="form-field">
                   {field.type === 'select' ? (
-                    <select
-                      id={field.name}
-                      name={field.name}
-                      value={formValues[field.name]}
-                      onChange={e => handleChange(e, field)}
-                      className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                        formErrors[field.name] ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                    <FormControl 
+                      fullWidth 
+                      error={!!formErrors[field.name]}
+                      variant="outlined"
                     >
-                      <option value="">Select {field.label}</option>
-                      {field.options.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
+                      <InputLabel>{field.label}</InputLabel>
+                      <Select
+                        value={formValues[field.name]}
+                        onChange={e => handleChange(e, field)}
+                        label={field.label}
+                      >
+                        <MenuItem value="">
+                          <em>Select {field.label}</em>
+                        </MenuItem>
+                        {field.options.map(opt => (
+                          <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                        ))}
+                      </Select>
+                      {formErrors[field.name] && (
+                        <FormHelperText>{formErrors[field.name]}</FormHelperText>
+                      )}
+                    </FormControl>
                   ) : field.type === 'textarea' ? (
-                    <textarea
-                      id={field.name}
-                      name={field.name}
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={4}
+                      label={field.label}
                       value={formValues[field.name]}
                       onChange={e => handleChange(e, field)}
-                      rows={4}
-                      maxLength={field.maxLength || undefined}
-                      className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                        formErrors[field.name] ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      error={!!formErrors[field.name]}
+                      helperText={formErrors[field.name]}
+                      variant="outlined"
+                      required={field.required}
                     />
                   ) : (
-                    <input
-                      id={field.name}
-                      name={field.name}
+                    <TextField
+                      fullWidth
                       type={field.type}
+                      label={field.label}
                       value={formValues[field.name]}
                       onChange={e => handleChange(e, field)}
-                      min={field.min || undefined}
-                      max={field.max || undefined}
-                      minLength={field.minLength || undefined}
-                      maxLength={field.maxLength || undefined}
-                      className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                        formErrors[field.name] ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      error={!!formErrors[field.name]}
+                      helperText={formErrors[field.name]}
+                      variant="outlined"
+                      required={field.required}
+                      InputProps={{
+                        startAdornment: field.type === 'tel' && (
+                          <span className="text-gray-500 mr-2">+</span>
+                        )
+                      }}
                     />
-                  )}
-                  {formErrors[field.name] && (
-                    <span className="text-red-500 text-sm mt-1">{formErrors[field.name]}</span>
                   )}
                 </div>
               ))}
             </div>
-            <button
+            <Button
+              variant="contained"
+              color="primary"
               type="submit"
-              className="mt-8 w-full bg-blue-600 text-white font-semibold py-3 rounded hover:bg-blue-700 transition"
+              disabled={isSubmitting}
+              className="submit-button"
             >
-              Submit
-            </button>
-            {submitted && Object.keys(formErrors).length === 0 && (
-              <div className="mt-4 text-green-600 font-semibold text-center">
-                Form submitted successfully!
-              </div>
-            )}
+              {isSubmitting ? (
+                <React.Fragment>
+                  <span className="loading-spinner"></span>
+                  Submitting...
+                </React.Fragment>
+              ) : (
+                'Submit'
+              )}
+            </Button>
           </form>
         </div>
       );
