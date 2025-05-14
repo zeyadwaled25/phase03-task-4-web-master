@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evil Manager and the Long Form</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div id="root" class="w-full"></div>
+  <!-- React, ReactDOM, Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- App Script -->
+  <script type="text/babel">
+    // Field configuration array: each field has name, label, type, validation rules, etc.
+    const fieldConfig = [
+      { name: 'firstName', label: 'First Name', type: 'text', required: true, minLength: 2 },
+      { name: 'lastName', label: 'Last Name', type: 'text', required: true, minLength: 2 },
+      { name: 'email', label: 'Email', type: 'email', required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+      { name: 'phone', label: 'Phone', type: 'tel', required: true, pattern: /^\+?\d{10,15}$/ },
+      { name: 'age', label: 'Age', type: 'number', required: true, min: 18, max: 120 },
+      { name: 'address', label: 'Address', type: 'text', required: true, minLength: 5 },
+      { name: 'city', label: 'City', type: 'text', required: true },
+      { name: 'country', label: 'Country', type: 'text', required: true },
+      { name: 'zipCode', label: 'Zip Code', type: 'text', required: true, pattern: /^\d{5}(-\d{4})?$/ },
+      { name: 'occupation', label: 'Occupation', type: 'text', required: false },
+      { name: 'company', label: 'Company', type: 'text', required: false },
+      { name: 'website', label: 'Website', type: 'url', required: false, pattern: /^https?:\/\/.+/ },
+      { name: 'birthDate', label: 'Birth Date', type: 'date', required: true },
+      { name: 'gender', label: 'Gender', type: 'select', required: true, options: ['Male', 'Female', 'Other'] },
+      { name: 'nationality', label: 'Nationality', type: 'text', required: true },
+      { name: 'emergencyContact', label: 'Emergency Contact', type: 'tel', required: true, pattern: /^\+?\d{10,15}$/ },
+      { name: 'hobbies', label: 'Hobbies', type: 'text', required: false },
+      { name: 'education', label: 'Education', type: 'text', required: true },
+      { name: 'language', label: 'Language', type: 'text', required: true },
+      { name: 'comments', label: 'Comments', type: 'textarea', required: false, maxLength: 500 },
+    ];
+
+    // Generic validation function for all fields
+    function validateField(field, value) {
+      // Required field validation
+      if (field.required && (!value || value.toString().trim() === '')) {
+        return `${field.label} is required.`;
+      }
+
+      // Text length validations
+      if (field.minLength && value && value.length < field.minLength) {
+        return `${field.label} must be at least ${field.minLength} characters.`;
+      }
+      if (field.maxLength && value && value.length > field.maxLength) {
+        return `${field.label} must be at most ${field.maxLength} characters.`;
+      }
+
+      // Type-specific validations
+      if (field.type === 'email' && value && !/^\S+@\S+\.\S+$/.test(value)) {
+        return 'Please enter a valid email address.';
+      }
+      if (field.type === 'tel' && value && !/^\+?\d{10,15}$/.test(value)) {
+        return 'Please enter a valid phone number (10-15 digits, optional +).';
+      }
+      if (field.type === 'url' && value && !/^https?:\/\/.+/.test(value)) {
+        return 'Please enter a valid URL (starting with http:// or https://).';
+      }
+
+      // Numeric range validations
+      if (field.type === 'number' && value) {
+        const num = Number(value);
+        if (isNaN(num)) return `${field.label} must be a number.`;
+        if (field.min !== undefined && num < field.min) {
+          return `${field.label} must be at least ${field.min}.`;
+        }
+        if (field.max !== undefined && num > field.max) {
+          return `${field.label} must be at most ${field.max}.`;
+        }
+      }
+
+      // Custom pattern validations
+      if (field.pattern && value && !field.pattern.test(value)) {
+        if (field.name === 'zipCode') {
+          return 'Zip Code must be 12345 or 12345-6789.';
+        }
+        if (field.name === 'email') {
+          return 'Please enter a valid email address.';
+        }
+        if (field.name === 'phone' || field.name === 'emergencyContact') {
+          return 'Please enter a valid phone number (10-15 digits, optional +).';
+        }
+        if (field.name === 'website') {
+          return 'Please enter a valid URL (starting with http:// or https://).';
+        }
+        return `Invalid format for ${field.label}.`;
+      }
+
+      // Return empty string if all validations pass
+      return '';
+    }
+
+    // Main Form Component
+    function DynamicForm() {
+      // State for form values and errors
+      const [formValues, setFormValues] = React.useState(() => {
+        const initial = {};
+        fieldConfig.forEach(f => { initial[f.name] = ''; });
+        return initial;
+      });
+      const [formErrors, setFormErrors] = React.useState({});
+      const [submitted, setSubmitted] = React.useState(false);
+
+      // Handle input change
+      const handleChange = (e, field) => {
+        const { name, value } = e.target;
+        setFormValues(prev => ({ ...prev, [name]: value }));
+        // Validate on change
+        setFormErrors(prev => ({ ...prev, [name]: validateField(field, value) }));
+      };
+
+      // Handle form submit
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        let errors = {};
+        fieldConfig.forEach(field => {
+          const error = validateField(field, formValues[field.name]);
+          if (error) errors[field.name] = error;
+        });
+        setFormErrors(errors);
+        setSubmitted(true);
+        if (Object.keys(errors).length === 0) {
+          // Success: show alert and reset form
+          alert('Form submitted successfully!');
+          setFormValues(fieldConfig.reduce((acc, f) => ({ ...acc, [f.name]: '' }), {}));
+          setSubmitted(false);
+        }
+      };
+
+      return (
+        <div className="max-w-2xl w-full bg-white p-8 rounded-lg shadow-lg mx-auto my-8">
+          <h2 className="text-2xl font-bold mb-6 text-center">Evil Manager and the Long Form</h2>
+          <form onSubmit={handleSubmit} noValidate>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {fieldConfig.map(field => (
+                <div key={field.name} className="flex flex-col col-span-1">
+                  <label htmlFor={field.name} className="mb-1 font-medium">
+                    {field.label}
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                  </label>
+                  {field.type === 'select' ? (
+                    <select
+                      id={field.name}
+                      name={field.name}
+                      value={formValues[field.name]}
+                      onChange={e => handleChange(e, field)}
+                      className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                        formErrors[field.name] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">Select {field.label}</option>
+                      {field.options.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  ) : field.type === 'textarea' ? (
+                    <textarea
+                      id={field.name}
+                      name={field.name}
+                      value={formValues[field.name]}
+                      onChange={e => handleChange(e, field)}
+                      rows={4}
+                      maxLength={field.maxLength || undefined}
+                      className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                        formErrors[field.name] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                  ) : (
+                    <input
+                      id={field.name}
+                      name={field.name}
+                      type={field.type}
+                      value={formValues[field.name]}
+                      onChange={e => handleChange(e, field)}
+                      min={field.min || undefined}
+                      max={field.max || undefined}
+                      minLength={field.minLength || undefined}
+                      maxLength={field.maxLength || undefined}
+                      className={`border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                        formErrors[field.name] ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                  )}
+                  {formErrors[field.name] && (
+                    <span className="text-red-500 text-sm mt-1">{formErrors[field.name]}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="submit"
+              className="mt-8 w-full bg-blue-600 text-white font-semibold py-3 rounded hover:bg-blue-700 transition"
+            >
+              Submit
+            </button>
+            {submitted && Object.keys(formErrors).length === 0 && (
+              <div className="mt-4 text-green-600 font-semibold text-center">
+                Form submitted successfully!
+              </div>
+            )}
+          </form>
+        </div>
+      );
+    }
+
+    // Render the form
+    ReactDOM.createRoot(document.getElementById('root')).render(<DynamicForm />);
+  </script>
+</body>
+</html> 
